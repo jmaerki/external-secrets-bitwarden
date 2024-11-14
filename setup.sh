@@ -11,33 +11,49 @@ apt update
 # Install required packages
 apt install --yes ca-certificates curl unzip jq
 
-echo "Get download URL and download zip file ..."
-DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/bitwarden/clients/releases" | jq -r ".[] | select(.name | startswith(\"CLI\")) | .assets[] | select(.name==\"bw-linux-${BW_CLI_VERSION}.zip\") | .browser_download_url")
-curl --location --output "bw-linux-${BW_CLI_VERSION}.zip" "${DOWNLOAD_URL}"
+# Determine CPU architecture
+CPU_ARCH=$(uname -m)
 
-echo "Verifying file integrity..."
-ACTUAL_CHECKSUM=$(sha256sum "bw-linux-${BW_CLI_VERSION}.zip" | awk '{print $1}')
-SHA256SUMS_URL=$(curl -s "https://api.github.com/repos/bitwarden/clients/releases" | jq -r ".[] | select(.name | startswith(\"CLI\")) | .assets[] | select(.name==\"bw-linux-sha256-${BW_CLI_VERSION}.txt\") | .browser_download_url")
-SHA256SUM=$(curl --location -s "$SHA256SUMS_URL")
+if [ "${CPU_ARCH}" = "x86_64" ]
+then
 
-# Compare checksums to ensure integrity
-if [ "${SHA256SUM}" = "${ACTUAL_CHECKSUM}" ]
-then 
-    echo "Checksum verified. File integrity is intact."
-else
-    echo "Checksum verification failed. The download file may be corrupted."
-    exit 1
+    echo "Get download URL and download zip file ..."
+    DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/bitwarden/clients/releases" | jq -r ".[] | select(.name | startswith(\"CLI\")) | .assets[] | select(.name==\"bw-linux-${BW_CLI_VERSION}.zip\") | .browser_download_url")
+    curl --location --output "bw-linux-${BW_CLI_VERSION}.zip" "${DOWNLOAD_URL}"
+
+    echo "Verifying file integrity..."
+    ACTUAL_CHECKSUM=$(sha256sum "bw-linux-${BW_CLI_VERSION}.zip" | awk '{print $1}')
+    SHA256SUMS_URL=$(curl -s "https://api.github.com/repos/bitwarden/clients/releases" | jq -r ".[] | select(.name | startswith(\"CLI\")) | .assets[] | select(.name==\"bw-linux-sha256-${BW_CLI_VERSION}.txt\") | .browser_download_url")
+    SHA256SUM=$(curl --location -s "$SHA256SUMS_URL")
+
+    # Compare checksums to ensure integrity
+    if [ "${SHA256SUM}" = "${ACTUAL_CHECKSUM}" ]
+    then 
+        echo "Checksum verified. File integrity is intact."
+    else
+        echo "Checksum verification failed. The download file may be corrupted."
+        exit 1
+    fi
+
+    # Unzip downloaded Bitwarden CLI 
+    unzip bw-linux-${BW_CLI_VERSION}.zip
+
+    # Make Bitwarden CLI executable and move to binary to $PATH
+    chmod +x bw
+    mv bw /usr/local/bin/bw
+
+    # Cleanup all unnecessary files and packages
+    rm -rfv bw-linux-${BW_CLI_VERSION}.zip
 fi
 
-# Unzip downloaded Bitwarden CLI 
-unzip bw-linux-${BW_CLI_VERSION}.zip
-
-# Make Bitwarden CLI executable and move to binary to $PATH
-chmod +x bw
-mv bw /usr/local/bin/bw
+# If Arm64 architecture, install "npm" and then use npm to install "@bitwarden/cli" in the version identified by ${BW_CLI_VERSION}
+if [ "${CPU_ARCH}" = "aarch64" ]
+then
+    apt install --yes npm
+    npm install -g "@bitwarden/cli@${BW_CLI_VERSION}"
+fi
 
 # Cleanup all unnecessary files and packages
-rm -rfv bw-linux-${BW_CLI_VERSION}.zip
 apt remove --yes unzip jq
 apt clean autoclean
 apt autoremove --yes
