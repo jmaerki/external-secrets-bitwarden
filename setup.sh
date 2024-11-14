@@ -51,6 +51,9 @@ if [ "${CPU_ARCH}" = "aarch64" ]
 then
     apt install --yes npm
     npm install -g "@bitwarden/cli@${BW_CLI_VERSION}"
+
+    # Uninstall npm and just leave the bitwarden CLI running.
+    apt remove --yes npm
 fi
 
 # Cleanup all unnecessary files and packages
