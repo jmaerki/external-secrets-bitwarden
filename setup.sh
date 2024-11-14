@@ -52,8 +52,8 @@ then
     apt install --yes npm
     npm install -g "@bitwarden/cli@${BW_CLI_VERSION}"
 
-    # Uninstall npm and just leave the bitwarden CLI running.
-    apt remove --yes npm
+    # Uninstall npm and just leave the bitwarden CLI.
+    npm uninstall npm -g
 fi
 
 # Cleanup all unnecessary files and packages
